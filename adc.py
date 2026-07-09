@@ -102,6 +102,18 @@ def read_adc():
     except EasyMCP2221.exceptions.NotAckError:
         pass
 
+def turn_on():
+    mcp.GPIO_write(gp0 = True)
+    if ioext.is_present():
+        ioext.write_register(0x03, 0xfe)
+    return True
+
+def turn_off():
+    mcp.GPIO_write(gp0 = False)
+    if ioext.is_present():
+        ioext.write_register(0x03, 0xff)
+    return False
+
 def main():
     global mcp
     mcp = EasyMCP2221.Device()
@@ -119,6 +131,8 @@ def main():
 
         # Register the functions
         server.register_function(read_adc, "read")
+        server.register_function(turn_on, "on")
+        server.register_function(turn_off, "off")
 
         try:
             server.serve_forever()

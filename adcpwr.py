@@ -11,6 +11,9 @@ def main():
         if len(sys.argv) == 2 and sys.argv[1] == 'on':
             adc_result = proxy.on()
             print(f"ADC Power: {adc_result}")
+        elif len(sys.argv) == 2 and sys.argv[1] == 'rst':
+            adc_result = proxy.rst()
+            print(f"FX3 Reset: {adc_result}")
         else:
             adc_result = proxy.off()
             print(f"ADC Power: {adc_result}")

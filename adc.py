@@ -54,7 +54,7 @@ def setup_components():
         inaC.write_register(0x00, bytes.fromhex('4127'))
         inaC.write_register(0x05, bytes.fromhex('1450'))
     if ioext.is_present():
-        ioext.write_register(0x03, 0xfe)
+        ioext.write_register(0x03, 0xfd)
     f2on = ioext.read_register(0x03, 1) if ioext.is_present() else None
     f1on = mcp.GPIO_read()[0]
 
@@ -105,13 +105,26 @@ def read_adc():
 def turn_on():
     mcp.GPIO_write(gp0 = True)
     if ioext.is_present():
-        ioext.write_register(0x03, 0xfe)
+        ioext.write_register(0x01, 0xfe)
     return True
 
 def turn_off():
     mcp.GPIO_write(gp0 = False)
     if ioext.is_present():
-        ioext.write_register(0x03, 0xff)
+        ioext.write_register(0x01, 0xff)
+    return False
+
+def fx3_rst():
+    if ioext.is_present():
+        regval = ioext.read_register(0x03, 1)
+        print(f"ioext: @0x03: {regval}")
+        trgval = bytes(a & b for a, b in zip(regval, b'\xFD'))
+        ioext.write_register(0x01, trgval)
+        print(f"=> {trgval}")
+        time.sleep(1)
+        rstval = bytes(a | b for a, b in zip(regval, b'\x02'))
+        ioext.write_register(0x01, rstval)
+        print(f"=> {rstval}")
     return False
 
 def main():
@@ -133,6 +146,7 @@ def main():
         server.register_function(read_adc, "read")
         server.register_function(turn_on, "on")
         server.register_function(turn_off, "off")
+        server.register_function(fx3_rst, "rst")
 
         try:
             server.serve_forever()

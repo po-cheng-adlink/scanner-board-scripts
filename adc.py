@@ -54,13 +54,14 @@ def setup_components():
         inaC.write_register(0x00, bytes.fromhex('4127'))
         inaC.write_register(0x05, bytes.fromhex('1450'))
     if ioext.is_present():
-        ioext.write_register(0x03, 0xfd)
-    f2on = ioext.read_register(0x03, 1) if ioext.is_present() else None
-    f1on = mcp.GPIO_read()[0]
+        ioext.write_register(0x03, 0xff)
 
 # Define functions to expose
 def read_adc():
-    result = {'adc': mcp.GPIO_read()[0]}
+    global f2on, f1on
+    f2on = ioext.read_register(0x03, 1)
+    f1on = mcp.GPIO_read()[0]
+    result = {'adc': 'report'}
     try:
         time.sleep(1)
 
@@ -89,7 +90,7 @@ def read_adc():
         result.update( {'B INA Current mA': (int.from_bytes(inaB_curr, byteorder='big') * 0.1) } )
         result.update( {'B INA Power mW': (int.from_bytes(inaB_pwr, byteorder='big') * 2.5) } )
 
-        result.update( {'C eFUSE': f2on == b'\xfe'} )
+        result.update( {'C eFUSE': f2on & b'\xFE'} )
         result.update( {'C +5V': ((values[1] / 1024) * 3.3 / (R192/(R191+R192))) } )
         result.update( {'C WAND': (int.from_bytes(inaC_vbus, byteorder='big') * 0.00125) } )
         result.update( {'C INA Shunt mV': (int.from_bytes(inaC_shnt, byteorder='big') * 0.0025) } )
@@ -105,13 +106,21 @@ def read_adc():
 def turn_on():
     mcp.GPIO_write(gp0 = True)
     if ioext.is_present():
-        ioext.write_register(0x01, 0xfe)
+        regval = ioext.read_register(0x03, 1)
+        print(f"ioext: @0x03: {regval}")
+        trgval = bytes(a & b for a, b in zip(regval, b'\xFE'))
+        ioext.write_register(0x01, trgval)
+        print(f"=> {trgval}")
     return True
 
 def turn_off():
     mcp.GPIO_write(gp0 = False)
     if ioext.is_present():
-        ioext.write_register(0x01, 0xff)
+        regval = ioext.read_register(0x03, 1)
+        print(f"ioext: @0x03: {regval}")
+        rstval = bytes(a | b for a, b in zip(regval, b'\x01'))
+        ioext.write_register(0x01, rstval)
+        print(f"=> {rstval}")
     return False
 
 def fx3_rst():
@@ -125,7 +134,7 @@ def fx3_rst():
         rstval = bytes(a | b for a, b in zip(regval, b'\x02'))
         ioext.write_register(0x01, rstval)
         print(f"=> {rstval}")
-    return False
+    return True
 
 def main():
     global mcp
